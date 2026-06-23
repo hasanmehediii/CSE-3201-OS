@@ -1,0 +1,60 @@
+docker exec -it polito-os161 /bin/bash
+
+cd /home/os161user/os161/root
+
+sys161 kernel "1a;q"
+
+sys161 kernel "1b;q"
+
+sys161 kernel "1c;q"
+
+
+---------------------------------------------------------------------------------------------------------------
+To show your teacher your completed assignment, you can run the tests live in front of them and then walk them through the code and your explanation files. Here is a step-by-step guide on exactly how to present it:
+
+Step 1: Open your Terminal and Start the Container
+First, ensure your Docker container is running and open an interactive shell inside it:
+
+bash
+docker exec -it polito-os161 /bin/bash
+Step 2: Navigate to the Compiled Kernel
+Once inside the container, navigate to the root directory where the compiled OS/161 kernel executable is located:
+
+bash
+cd /home/os161user/os161/root
+Step 3: Run the Tests Live
+Now, you can execute the three assignment tests for your teacher to prove they work without deadlocks or race conditions.
+
+To show Part 1 (Math Problem):
+
+bash
+sys161 kernel "1a;q"
+Point out to your teacher that the final sum is exactly 10,000 and no updates were lost thanks to the lock.
+
+To show Part 2 (Producer/Consumer):
+
+bash
+sys161 kernel "1b;q"
+Point out that exactly 200 items were produced and 200 were consumed successfully.
+
+To show Part 3 (Bar Synchronization):
+
+bash
+sys161 kernel "1c;q"
+Point out that all 8 customers were served by the 2 bartenders, and the program exited cleanly without hanging.
+
+Step 4: Show the Code
+If your teacher asks to see the actual code you wrote, you can display the files directly in the terminal using cat (or nano/vim if you prefer). Still inside the container, you can run:
+
+For the Math code: cat /home/os161user/os161/src/kern/asst1/math.c
+For Producer/Consumer code: cat /home/os161user/os161/src/kern/asst1/producerconsumer.c
+For Bar code: cat /home/os161user/os161/src/kern/asst1/bar.c
+Step 5: Explain Your Logic
+Open the solve1.md, solve2.md, and solve3.md files (which I saved in your CSE-3201-OS/OS161/ folder) side-by-side. You can use these documents as a "cheat sheet" to explain your logic:
+
+Tell them how you used Locks in math.c for mutual exclusion.
+Explain the Circular Array and Condition Variables (not_full, not_empty) in producerconsumer.c.
+Explain the Ticket Queue system with Condition Variables used in bar.c to maintain strict First-In-First-Out ordering.
+Note: Since the Docker image you used was the PoliTO version, remind your teacher (if they ask) that the Bar problem implements the ticket/queue system that came natively with your provided Docker image.
+
+1:20 AM

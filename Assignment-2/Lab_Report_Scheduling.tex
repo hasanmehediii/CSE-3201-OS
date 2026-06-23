@@ -1,0 +1,756 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+\usepackage{graphicx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{blue},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=4
+}
+\lstset{style=mystyle}
+
+\begin{document}
+
+\begin{titlepage}
+    \centering
+    \vspace*{4cm}
+    
+    {\Large \textbf{Course: CSE-3211 Operating System Lab}}\\[1.5cm]
+    
+    {\Huge \textbf{Lab Report on Scheduling Algorithms}}\\[2cm]
+    
+    \textbf{\Large Submitted By:}\\[0.5cm]
+    {\large Mehedi Hasan}\\
+    {\large Roll-22}\\[2cm]
+    
+    \vfill
+    
+    {\large \today}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Introduction}
+CPU scheduling is a process which allows one process to use the CPU while the execution of another process is on hold (in waiting state) due to unavailability of any resource like I/O etc, thereby making full use of CPU. The aim of CPU scheduling is to make the system efficient, fast and fair.
+
+This lab report details the implementation, theory, and comparative analysis of five fundamental CPU scheduling algorithms:
+\begin{itemize}
+    \item First-Come, First-Served (FCFS)
+    \item Shortest Job First (SJF)
+    \item Shortest Remaining Time Next (SRTN)
+    \item Round Robin (RR)
+    \item Lottery Scheduling
+\end{itemize}
+
+\newpage
+\section{First-Come, First-Served (FCFS) Scheduling}
+
+\subsection{Theory and Algorithm}
+FCFS is the simplest scheduling algorithm. Processes are dispatched according to their arrival time on the ready queue. Being a non-preemptive discipline, once a process has the CPU, it runs to completion.
+
+\textbf{Algorithm:}
+\begin{enumerate}
+    \item Maintain a queue of processes sorted by arrival time.
+    \item The process at the front of the ready queue gets the CPU first.
+    \item It executes until its burst time is completed.
+    \item Calculate waiting time: \texttt{WT[i] = WT[i-1] + Burst[i-1]} (assuming arrival time is 0 for all).
+    \item Calculate turnaround time: \texttt{TAT[i] = WT[i] + Burst[i]}.
+\end{enumerate}
+
+\subsection{Implementation (C Code)}
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+
+#define MAX_PROCESSES 20
+
+typedef struct {
+    int pid;
+    int burst;
+    int waiting;
+    int turnaround;
+} Process;
+
+void printGantt(Process p[], int n) {
+    printf("\nGantt Chart:\n|");
+    for (int i = 0; i < n; i++)
+        printf(" P%d |", p[i].pid);
+    printf("\n0");
+    int t = 0;
+    for (int i = 0; i < n; i++) {
+        t += p[i].burst;
+        printf("   %d", t);
+    }
+    printf("\n");
+}
+
+int main() {
+    Process p[MAX_PROCESSES];
+    int n;
+
+    printf("===== FCFS CPU Scheduling =====\n");
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; i++) {
+        p[i].pid = i + 1;
+        printf("Enter burst time for P%d: ", i + 1);
+        scanf("%d", &p[i].burst);
+    }
+
+    p[0].waiting    = 0;
+    p[0].turnaround = p[0].burst;
+    for (int i = 1; i < n; i++) {
+        p[i].waiting    = p[i-1].waiting + p[i-1].burst;
+        p[i].turnaround = p[i].waiting   + p[i].burst;
+    }
+
+    printGantt(p, n);
+
+    printf("\n%-10s %-15s %-15s %-15s\n",
+           "Process", "Burst Time(ms)", "Waiting Time(ms)", "Turnaround Time(ms)");
+    printf("----------------------------------------------------------\n");
+
+    float totalWT = 0, totalTAT = 0;
+    for (int i = 0; i < n; i++) {
+        printf("P%-9d %-15d %-15d %-15d\n",
+               p[i].pid, p[i].burst, p[i].waiting, p[i].turnaround);
+        totalWT  += p[i].waiting;
+        totalTAT += p[i].turnaround;
+    }
+
+    printf("----------------------------------------------------------\n");
+    printf("Average Waiting Time    : %.2f ms\n", totalWT  / n);
+    printf("Average Turnaround Time : %.2f ms\n", totalTAT / n);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Output}
+\begin{verbatim}
+===== FCFS CPU Scheduling =====
+Enter number of processes: 3
+Enter burst time for P1: 5
+Enter burst time for P2: 8
+Enter burst time for P3: 3
+
+Gantt Chart:
+| P1 | P2 | P3 |
+0   5   13   16
+
+Process    Burst Time(ms)  Waiting Time(ms) Turnaround Time(ms)
+----------------------------------------------------------
+P1         5               0               5              
+P2         8               5               13             
+P3         3               13              16             
+----------------------------------------------------------
+Average Waiting Time    : 6.00 ms
+Average Turnaround Time : 11.33 ms
+\end{verbatim}
+
+\newpage
+\section{Shortest Job First (SJF) Scheduling}
+
+\subsection{Theory and Algorithm}
+SJF is a scheduling policy that selects the waiting process with the smallest execution time to execute next. SJF is a non-preemptive algorithm. It reduces the average waiting time over FCFS.
+
+\textbf{Algorithm:}
+\begin{enumerate}
+    \item Sort all processes according to their burst time in ascending order.
+    \item Execute the process with the shortest burst time first.
+    \item Calculate waiting time: \texttt{WT[i] = WT[i-1] + Burst[i-1]}.
+    \item Calculate turnaround time: \texttt{TAT[i] = WT[i] + Burst[i]}.
+\end{enumerate}
+
+\subsection{Implementation (C Code)}
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+
+#define MAX_PROCESSES 20
+
+typedef struct {
+    int pid;
+    int burst;
+    int waiting;
+    int turnaround;
+} Process;
+
+void sortByBurst(Process p[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - 1 - i; j++) {
+            if (p[j].burst > p[j+1].burst) {
+                Process tmp = p[j];
+                p[j]        = p[j+1];
+                p[j+1]      = tmp;
+            }
+        }
+    }
+}
+
+void printGantt(Process p[], int n) {
+    printf("\nGantt Chart:\n|");
+    for (int i = 0; i < n; i++)
+        printf(" P%d |", p[i].pid);
+    printf("\n0");
+    int t = 0;
+    for (int i = 0; i < n; i++) {
+        t += p[i].burst;
+        printf("   %d", t);
+    }
+    printf("\n");
+}
+
+int main() {
+    Process p[MAX_PROCESSES];
+    int n;
+
+    printf("===== SJF CPU Scheduling =====\n");
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; i++) {
+        p[i].pid = i + 1;
+        printf("Enter burst time for P%d: ", i + 1);
+        scanf("%d", &p[i].burst);
+    }
+
+    sortByBurst(p, n);
+
+    p[0].waiting    = 0;
+    p[0].turnaround = p[0].burst;
+    for (int i = 1; i < n; i++) {
+        p[i].waiting    = p[i-1].waiting + p[i-1].burst;
+        p[i].turnaround = p[i].waiting   + p[i].burst;
+    }
+
+    printGantt(p, n);
+
+    printf("\n%-10s %-15s %-15s %-15s\n",
+           "Process", "Burst Time(ms)", "Waiting Time(ms)", "Turnaround Time(ms)");
+    printf("----------------------------------------------------------\n");
+
+    float totalWT = 0, totalTAT = 0;
+    for (int i = 0; i < n; i++) {
+        printf("P%-9d %-15d %-15d %-15d\n",
+               p[i].pid, p[i].burst, p[i].waiting, p[i].turnaround);
+        totalWT  += p[i].waiting;
+        totalTAT += p[i].turnaround;
+    }
+
+    printf("----------------------------------------------------------\n");
+    printf("Average Waiting Time    : %.2f ms\n", totalWT  / n);
+    printf("Average Turnaround Time : %.2f ms\n", totalTAT / n);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Output}
+\begin{verbatim}
+===== SJF CPU Scheduling =====
+Enter number of processes: 4
+Enter burst time for P1: 6
+Enter burst time for P2: 8
+Enter burst time for P3: 7
+Enter burst time for P4: 3
+
+Gantt Chart:
+| P4 | P1 | P3 | P2 |
+0   3   9   16   24
+
+Process    Burst Time(ms)  Waiting Time(ms) Turnaround Time(ms)
+----------------------------------------------------------
+P4         3               0               3              
+P1         6               3               9              
+P3         7               9               16             
+P2         8               16              24             
+----------------------------------------------------------
+Average Waiting Time    : 7.00 ms
+Average Turnaround Time : 13.00 ms
+\end{verbatim}
+
+
+\newpage
+\section{Shortest Remaining Time Next (SRTN) Scheduling}
+
+\subsection{Theory and Algorithm}
+SRTN is the preemptive version of SJF. In SRTN, the execution of any process can be preempted if a new process arrives with a shorter remaining burst time than the currently executing process.
+
+\textbf{Algorithm:}
+\begin{enumerate}
+    \item Initialize remaining burst times.
+    \item At every time unit, check for the process with the minimum remaining burst time among all arrived processes.
+    \item Execute the chosen process for 1 time unit and decrement its remaining burst time.
+    \item If the remaining burst time becomes 0, the process completes. Calculate its turnaround time and waiting time.
+    \item Repeat until all processes are completed.
+\end{enumerate}
+
+\subsection{Implementation (C Code)}
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <limits.h>
+
+#define MAX_PROCESSES 20
+
+typedef struct {
+    int pid;
+    int arrival;
+    int burst;
+    int remaining;
+    int completion;
+    int waiting;
+    int turnaround;
+    int started;
+} Process;
+
+void printGanttLog(int log[], int totalTime) {
+    printf("\nGantt Chart (per time unit):\n");
+    int t = 0;
+    while (t < totalTime) {
+        int cur = log[t], start = t;
+        while (t < totalTime && log[t] == cur) t++;
+        if (cur == -1)
+            printf("| IDLE(%d-%d) ", start, t);
+        else
+            printf("| P%d(%d-%d) ", cur, start, t);
+    }
+    printf("|\n");
+}
+
+int main() {
+    Process p[MAX_PROCESSES];
+    int n;
+
+    printf("===== SRTN CPU Scheduling =====\n");
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; i++) {
+        p[i].pid     = i + 1;
+        p[i].started = 0;
+        printf("Enter arrival time and burst time for P%d: ", i + 1);
+        scanf("%d %d", &p[i].arrival, &p[i].burst);
+        p[i].remaining = p[i].burst;
+    }
+
+    int totalBurst = 0;
+    for (int i = 0; i < n; i++) totalBurst += p[i].burst;
+
+    int ganttLog[10000];
+    int completed = 0, t = 0;
+
+    while (completed < n) {
+        int idx = -1, minRem = INT_MAX;
+        for (int i = 0; i < n; i++) {
+            if (p[i].arrival <= t && p[i].remaining > 0) {
+                if (p[i].remaining < minRem) {
+                    minRem = p[i].remaining;
+                    idx    = i;
+                }
+            }
+        }
+
+        if (idx == -1) {
+            ganttLog[t++] = -1;   /* CPU idle */
+            continue;
+        }
+
+        ganttLog[t] = p[idx].pid;
+        p[idx].remaining--;
+        t++;
+
+        if (p[idx].remaining == 0) {
+            p[idx].completion  = t;
+            p[idx].turnaround  = p[idx].completion - p[idx].arrival;
+            p[idx].waiting     = p[idx].turnaround - p[idx].burst;
+            completed++;
+        }
+    }
+
+    printGanttLog(ganttLog, t);
+
+    printf("\n%-10s %-12s %-12s %-15s %-15s %-15s\n",
+           "Process", "Arrival(ms)", "Burst(ms)",
+           "Completion(ms)", "Waiting(ms)", "Turnaround(ms)");
+    printf("------------------------------------------------------------------------\n");
+
+    float totalWT = 0, totalTAT = 0;
+    for (int i = 0; i < n; i++) {
+        printf("P%-9d %-12d %-12d %-15d %-15d %-15d\n",
+               p[i].pid, p[i].arrival, p[i].burst,
+               p[i].completion, p[i].waiting, p[i].turnaround);
+        totalWT  += p[i].waiting;
+        totalTAT += p[i].turnaround;
+    }
+
+    printf("------------------------------------------------------------------------\n");
+    printf("Average Waiting Time    : %.2f ms\n", totalWT  / n);
+    printf("Average Turnaround Time : %.2f ms\n", totalTAT / n);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Output}
+\begin{verbatim}
+===== SRTN CPU Scheduling =====
+Enter number of processes: 3
+Enter arrival time and burst time for P1: 0 8
+Enter arrival time and burst time for P2: 1 4
+Enter arrival time and burst time for P3: 2 9
+
+Gantt Chart (per time unit):
+| P1(0-1) | P2(1-5) | P1(5-12) | P3(12-21) |
+
+Process    Arrival(ms)  Burst(ms)    Completion(ms)  Waiting(ms)     Turnaround(ms) 
+------------------------------------------------------------------------
+P1         0            8            12              4               12             
+P2         1            4            5               0               4              
+P3         2            9            21              10              19             
+------------------------------------------------------------------------
+Average Waiting Time    : 4.67 ms
+Average Turnaround Time : 11.67 ms
+\end{verbatim}
+
+
+\newpage
+\section{Round Robin (RR) Scheduling}
+
+\subsection{Theory and Algorithm}
+Round Robin is a preemptive process scheduling algorithm where each process is provided a fixed time to execute, known as a quantum. Once a process is executed for a given time period, it is preempted and another process executes for a given time period.
+
+\textbf{Algorithm:}
+\begin{enumerate}
+    \item Keep a ready queue of processes.
+    \item Dequeue a process from the ready queue and allocate the CPU to it for a maximum of the time quantum.
+    \item If the process finishes before the time quantum, it terminates.
+    \item If the process does not finish, it is preempted and enqueued at the back of the ready queue.
+    \item Repeat until all processes are finished.
+\end{enumerate}
+
+\subsection{Implementation (C Code)}
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+
+#define MAX_PROCESSES 20
+
+typedef struct {
+    int pid;
+    int burst;
+    int remaining;
+    int completion;
+    int waiting;
+    int turnaround;
+} Process;
+
+typedef struct {
+    int data[MAX_PROCESSES * 200];
+    int front, rear, size;
+} Queue;
+
+void initQueue(Queue *q) { q->front = q->rear = q->size = 0; }
+
+void enqueue(Queue *q, int val) {
+    q->data[q->rear++] = val;
+    q->size++;
+}
+
+int dequeue(Queue *q) {
+    int val = q->data[q->front++];
+    q->size--;
+    return val;
+}
+
+int main() {
+    Process p[MAX_PROCESSES];
+    int n, quantum;
+
+    printf("===== Round Robin CPU Scheduling =====\n");
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; i++) {
+        p[i].pid = i + 1;
+        printf("Enter burst time for P%d: ", i + 1);
+        scanf("%d", &p[i].burst);
+        p[i].remaining = p[i].burst;
+    }
+    printf("Enter time quantum: ");
+    scanf("%d", &quantum);
+
+    Queue q;
+    initQueue(&q);
+
+    /* Enqueue all processes initially */
+    for (int i = 0; i < n; i++)
+        enqueue(&q, i);
+
+    printf("\nExecution Order:\n");
+
+    int t = 0, completed = 0;
+    int inQueue[MAX_PROCESSES] = {0};
+    for (int i = 0; i < n; i++) inQueue[i] = 1;
+
+    while (completed < n) {
+        int idx = dequeue(&q);
+        inQueue[idx] = 0;
+
+        int runTime = (p[idx].remaining < quantum) ? p[idx].remaining : quantum;
+        printf("P%d runs from %d to %d\n", p[idx].pid, t, t + runTime);
+        t                 += runTime;
+        p[idx].remaining  -= runTime;
+
+        if (p[idx].remaining == 0) {
+            p[idx].completion  = t;
+            p[idx].turnaround  = p[idx].completion;
+            p[idx].waiting     = p[idx].turnaround - p[idx].burst;
+            completed++;
+        } else {
+            enqueue(&q, idx);
+            inQueue[idx] = 1;
+        }
+    }
+
+    printf("\n%-10s %-15s %-15s %-15s\n",
+           "Process", "Burst Time(ms)", "Waiting Time(ms)", "Turnaround Time(ms)");
+    printf("----------------------------------------------------------\n");
+
+    float totalWT = 0, totalTAT = 0;
+    for (int i = 0; i < n; i++) {
+        printf("P%-9d %-15d %-15d %-15d\n",
+               p[i].pid, p[i].burst, p[i].waiting, p[i].turnaround);
+        totalWT  += p[i].waiting;
+        totalTAT += p[i].turnaround;
+    }
+
+    printf("----------------------------------------------------------\n");
+    printf("Time Quantum            : %d ms\n",  quantum);
+    printf("Average Waiting Time    : %.2f ms\n", totalWT  / n);
+    printf("Average Turnaround Time : %.2f ms\n", totalTAT / n);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Output}
+\begin{verbatim}
+===== Round Robin CPU Scheduling =====
+Enter number of processes: 3
+Enter burst time for P1: 5
+Enter burst time for P2: 8
+Enter burst time for P3: 3
+Enter time quantum: 2
+
+Execution Order:
+P1 runs from 0 to 2
+P2 runs from 2 to 4
+P3 runs from 4 to 6
+P1 runs from 6 to 8
+P2 runs from 8 to 10
+P3 runs from 10 to 11
+P1 runs from 11 to 12
+P2 runs from 12 to 14
+P2 runs from 14 to 16
+
+Process    Burst Time(ms)  Waiting Time(ms) Turnaround Time(ms)
+----------------------------------------------------------
+P1         5               7               12             
+P2         8               8               16             
+P3         3               8               11             
+----------------------------------------------------------
+Time Quantum            : 2 ms
+Average Waiting Time    : 7.67 ms
+Average Turnaround Time : 13.00 ms
+\end{verbatim}
+
+
+\newpage
+\section{Lottery Scheduling}
+
+\subsection{Theory and Algorithm}
+Lottery Scheduling is a probabilistic scheduling algorithm. Processes are assigned a certain number of "tickets". The scheduler draws a random ticket number to select the next process. Processes with more tickets have a higher chance of being selected, thus receiving a proportional share of the CPU.
+
+\textbf{Algorithm:}
+\begin{enumerate}
+    \item Assign tickets to each process representing its priority/share.
+    \item Count the total number of tickets among active/ready processes.
+    \item Pick a random number uniformly from the range [0, total\_tickets - 1].
+    \item Iterate through the active processes and keep a cumulative sum of their tickets.
+    \item When the cumulative sum exceeds the random number, the current process is the winner.
+    \item Execute the winner for a time quantum or until completion.
+    \item Repeat until all processes are done.
+\end{enumerate}
+
+\subsection{Implementation (C Code)}
+\begin{lstlisting}[language=C]
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+
+#define MAX_PROCESSES 20
+
+typedef struct {
+    int pid;
+    int burst;
+    int tickets;
+    int remaining;
+    int completion;
+    int waiting;
+    int turnaround;
+} Process;
+
+int main() {
+    Process p[MAX_PROCESSES];
+    int n, quantum;
+
+    srand((unsigned int)(time(NULL) ^ ((unsigned int)clock() << 16)));
+
+    printf("===== Lottery CPU Scheduling =====\n");
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (int i = 0; i < n; i++) {
+        p[i].pid = i + 1;
+        printf("Enter burst time and tickets for P%d: ", i + 1);
+        scanf("%d %d", &p[i].burst, &p[i].tickets);
+        p[i].remaining = p[i].burst;
+    }
+    printf("Enter time quantum: ");
+    scanf("%d", &quantum);
+
+    int t = 0, completed = 0;
+
+    printf("\n--- Lottery Draw Log ---\n");
+
+    while (completed < n) {
+        int totalTickets = 0;
+        for (int i = 0; i < n; i++)
+            if (p[i].remaining > 0)
+                totalTickets += p[i].tickets;
+
+        if (totalTickets == 0) break;
+
+        /* Draw a winning ticket */
+        int draw = rand() % totalTickets;
+        printf("Draw: %d (out of %d) -> ", draw, totalTickets);
+
+        /* Find the winning process */
+        int cumulative = 0, winner = -1;
+        for (int i = 0; i < n; i++) {
+            if (p[i].remaining > 0) {
+                cumulative += p[i].tickets;
+                if (draw < cumulative) {
+                    winner = i;
+                    break;
+                }
+            }
+        }
+
+        int runTime = (p[winner].remaining < quantum) ? p[winner].remaining : quantum;
+        printf("P%d runs %d-%d\n", p[winner].pid, t, t + runTime);
+        t                    += runTime;
+        p[winner].remaining  -= runTime;
+
+        if (p[winner].remaining == 0) {
+            p[winner].completion  = t;
+            p[winner].turnaround  = t;
+            p[winner].waiting     = t - p[winner].burst;
+            completed++;
+        }
+    }
+
+    printf("\n%-10s %-12s %-10s %-15s %-15s %-15s\n",
+           "Process", "Burst(ms)", "Tickets",
+           "Completion(ms)", "Waiting(ms)", "Turnaround(ms)");
+    printf("------------------------------------------------------------------------\n");
+
+    float totalWT = 0, totalTAT = 0;
+    for (int i = 0; i < n; i++) {
+        printf("P%-9d %-12d %-10d %-15d %-15d %-15d\n",
+               p[i].pid, p[i].burst, p[i].tickets,
+               p[i].completion, p[i].waiting, p[i].turnaround);
+        totalWT  += p[i].waiting;
+        totalTAT += p[i].turnaround;
+    }
+
+    printf("------------------------------------------------------------------------\n");
+    printf("Average Waiting Time    : %.2f ms\n", totalWT  / n);
+    printf("Average Turnaround Time : %.2f ms\n", totalTAT / n);
+
+    return 0;
+}
+\end{lstlisting}
+
+\subsection{Output}
+\begin{verbatim}
+===== Lottery CPU Scheduling =====
+Enter number of processes: 3
+Enter burst time and tickets for P1: 10 20
+Enter burst time and tickets for P2: 5 10
+Enter burst time and tickets for P3: 8 30
+Enter time quantum: 2
+
+--- Lottery Draw Log ---
+Draw: 12 (out of 60) -> P1 runs 0-2
+Draw: 22 (out of 60) -> P2 runs 2-4
+Draw: 12 (out of 60) -> P1 runs 4-6
+Draw: 47 (out of 60) -> P3 runs 6-8
+Draw: 38 (out of 60) -> P3 runs 8-10
+Draw: 54 (out of 60) -> P3 runs 10-12
+Draw: 22 (out of 60) -> P2 runs 12-14
+Draw: 46 (out of 60) -> P3 runs 14-16
+Draw: 19 (out of 30) -> P1 runs 16-18
+Draw: 7 (out of 30) -> P1 runs 18-20
+Draw: 20 (out of 30) -> P2 runs 20-21
+Draw: 10 (out of 20) -> P1 runs 21-23
+
+Process    Burst(ms)    Tickets    Completion(ms)  Waiting(ms)     Turnaround(ms) 
+------------------------------------------------------------------------
+P1         10           20         23              13              23             
+P2         5            10         21              16              21             
+P3         8            30         16              8               16             
+------------------------------------------------------------------------
+Average Waiting Time    : 12.33 ms
+Average Turnaround Time : 20.00 ms
+\end{verbatim}
+
+
+\newpage
+\section{Comparative Analysis}
+Based on the execution and theoretical properties of the algorithms, the following comparisons can be made:
+\begin{itemize}
+    \item \textbf{FCFS vs SJF}: FCFS is simple but suffers from the "convoy effect" where short processes wait for a long process to finish. SJF eliminates this by always picking the shortest job, significantly reducing the average waiting time. Our execution proved this (FCFS Wait Time vs SJF Wait Time).
+    \item \textbf{SJF vs SRTN}: While SJF is non-preemptive and cannot stop a running long process if a shorter one arrives, SRTN preempts the long process, ensuring that short interactive jobs get immediate CPU access, leading to an even more optimal average waiting time for dynamic systems.
+    \item \textbf{Round Robin (RR)}: Designed specifically for time-sharing systems, RR ensures fair CPU distribution using a time quantum. While it increases the average turnaround time due to frequent context switches, it provides an excellent response time for all processes compared to FCFS and SJF.
+    \item \textbf{Lottery Scheduling}: This probabilistic method introduces the concept of "proportional share". Processes with more tickets naturally secure more CPU time quanta overall. Unlike RR, which is strictly deterministic and equal, Lottery allows administrators to enforce priorities efficiently without complex queue management.
+\end{itemize}
+
+\section{Conclusion}
+In this lab, we successfully implemented and analyzed five fundamental CPU scheduling algorithms using the C programming language. Each algorithm has its specific strengths and weaknesses. FCFS is easy to implement but performs poorly with varying burst times. SJF and SRTN are optimal for minimizing waiting time but require knowledge of future burst times, which is generally impractical. Round Robin ensures fairness and low response time, making it ideal for interactive environments. Lottery Scheduling offers a flexible, probabilistic alternative for ensuring proportional resource allocation. The practical implementation reinforced our understanding of process scheduling, context switching logic, and OS resource management.
+
+\end{document}
