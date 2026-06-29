@@ -55,8 +55,10 @@ static void adder(void *p, unsigned long which)
 
 int runmath(int nargs, char **args)
 {
-	(void)nargs; (void)args;
 	int i, total, err;
+
+	(void)nargs;
+	(void)args;
 
 	counter = 0;
 	for (i = 0; i < NUM_THREADS; i++) {

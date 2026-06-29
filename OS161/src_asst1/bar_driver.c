@@ -26,8 +26,10 @@ static
 void
 customer(void *p, unsigned long which)
 {
-	(void)p;
 	int i;
+
+	(void)p;
+
 	for (i = 0; i < ROUNDS_PER_CUST; i++) {
 		bar_enter((int)which);
 		bar_leave((int)which);
@@ -42,15 +44,19 @@ static
 void
 bartender(void *p, unsigned long which)
 {
-	(void)p;
+	int more;
 	int served = 0;
+
+	(void)p;
+
 	while (1) {
 		lock_acquire(state_lock);
-		int more = (num_active_customers > 0);
+		more = (num_active_customers > 0);
 		lock_release(state_lock);
 		if (!more) break;
-		bar_mix((int)which);
-		served++;
+		if (bar_mix((int)which)) {
+			served++;
+		}
 	}
 	kprintf("Bartender %lu exiting (served %d drinks)\n", which, served);
 	V(done_sem);
@@ -58,10 +64,10 @@ bartender(void *p, unsigned long which)
 
 int runbar(int nargs, char **args)
 {
+	int i, err;
+
 	(void)nargs;
 	(void)args;
-
-	int i, err;
 
 	num_active_customers = NUM_CUSTOMERS;
 

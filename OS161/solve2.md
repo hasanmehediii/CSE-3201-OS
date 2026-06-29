@@ -1,41 +1,35 @@
-# Solution to Part 2: Bounded-Buffer Producer/Consumer Problem
+# Part 2: Bounded Buffer Producer/Consumer
 
-## Problem Identification
-In `producerconsumer.c`, multiple producer threads generate items and place them into a shared buffer, while multiple consumer threads take items out of the buffer. Because the buffer size is finite (`BUFFER_SIZE = 10`), producers must wait if the buffer is full, and consumers must wait if the buffer is empty. We need to prevent race conditions when accessing the buffer and ensure efficient waiting without busy-looping.
+The shared resource is a fixed-size FIFO buffer of `struct pc_data` items.
+Producers insert items, consumers remove items, and both groups share the
+buffer indexes and count. These variables must not be touched without
+holding the buffer lock.
 
-## How We Solved It
-We used an array to act as a **circular buffer**, combined with a **lock** and **two condition variables** (CVs) for synchronization. 
+The buffer is implemented as a circular array:
 
-### Steps Implemented
-1.  **Circular Buffer Design**: We defined an array `pc_buffer[BUFFER_SIZE]`. We use `buffer_head` (where consumers read from) and `buffer_tail` (where producers write to), and a `buffer_count` to track how many items are currently in the buffer. Both head and tail wrap around using modulo arithmetic (`% BUFFER_SIZE`).
-2.  **Synchronization Primitives**:
-    *   `pc_lock`: A lock to protect all buffer state variables (`head`, `tail`, `count`, and the `active_producers` counter).
-    *   `not_full_cv`: Producers wait on this when `buffer_count == BUFFER_SIZE`.
-    *   `not_empty_cv`: Consumers wait on this when `buffer_count == 0`.
-3.  **Producing Data**:
-    *   The producer acquires the lock.
-    *   It enters a `while (buffer_count == BUFFER_SIZE)` loop and calls `cv_wait(not_full_cv, pc_lock)`.
-    *   Once space is available, it adds the item at `buffer_tail`, updates variables, signals `not_empty_cv` to wake up any sleeping consumers, and releases the lock.
-4.  **Consuming Data**:
-    *   The consumer acquires the lock.
-    *   It waits in a `while (buffer_count == 0 && active_producers > 0)` loop using `cv_wait`. This ensures that consumers don't block forever if all producers have finished generating items.
-    *   If items are available, it reads from `buffer_head`, signals `not_full_cv` for sleeping producers, and returns true. If the buffer is empty and no producers are left, it returns false, causing the consumer thread to exit gracefully.
-5.  **Shutdown Logic**: `producerconsumer_mark_producer_done()` decrements the `active_producers` count. When it hits zero, it broadcasts to `not_empty_cv` to flush out and terminate any remaining sleeping consumers.
+```c
+static struct pc_data pc_buffer[BUFFER_SIZE];
+static unsigned buffer_head;
+static unsigned buffer_tail;
+static unsigned buffer_count;
+```
 
-## Commands to Compile and Run
-1.  **Enter the container:**
-    ```bash
-    docker exec -it polito-os161 /bin/bash
-    ```
-2.  **Rebuild the kernel:**
-    ```bash
-    cd /home/os161user/os161/src/kern/compile/DUMBVM
-    bmake depend && bmake && bmake install
-    ```
-3.  **Run the kernel and execute the producer/consumer test (`1b`):**
-    ```bash
-    cd /home/os161user/os161/root
-    sys161 kernel "1b;q"
-    ```
+`buffer_tail` is the next write position and `buffer_head` is the next read
+position. Both wrap with `% BUFFER_SIZE`. `buffer_count` distinguishes empty
+from full.
 
-The output will confirm that exactly the expected number of items (e.g., 200 items for 2 producers making 100 each) were both produced and consumed.
+Synchronization uses one lock and two condition variables. `pc_lock`
+protects all buffer state and the `active_producers` count. Producers wait on
+`not_full_cv` while the buffer is full. Consumers wait on `not_empty_cv`
+while the buffer is empty and at least one producer is still running. The
+waits are in `while` loops so the condition is rechecked after every wakeup.
+
+The local PoliTO driver records producer lifetime with
+`producerconsumer_inc_producers()` before forking a producer and
+`producerconsumer_mark_producer_done()` when a producer finishes. When the
+last producer exits, it broadcasts on `not_empty_cv`; this wakes consumers
+that are sleeping on an empty buffer so they can return `false` and terminate
+normally.
+
+Expected result: `sys161 kernel "1b;q"` prints equal produced and consumed
+totals. With the current driver, that is 200 produced and 200 consumed.

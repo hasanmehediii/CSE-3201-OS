@@ -1,46 +1,39 @@
-# Solution to Part 3: Bar Synchronization Problem
+# Part 3: Bar Synchronization
 
-## Problem Identification
-In `bar.c`, we have multiple "Customer" threads and multiple "Bartender" threads. Customers arrive, place an order, and wait for a bartender to mix it. Bartenders wait for orders, mix them one by one, and serve the drinks to the specific customer who ordered them. We need a way to pair specific customers with their served drinks while maintaining strict First-In-First-Out (FIFO) ordering. 
+This repository contains the PoliTO ticket-queue version of the bar problem,
+not the full UNSW bottle/ingredient driver. In this version customers call
+`bar_enter`, wait for one drink, and then call `bar_leave`; bartenders call
+`bar_mix` repeatedly until the driver sees that all customers are finished.
 
-*(Note: The Docker container provided contains the Politecnico di Torino "Ticket Queue" variant of the bar problem rather than the UNSW "Mixing Bottles" variant. The solution below satisfies the PoliTO driver logic).*
+The shared state is the order queue, the reusable order slots, and the
+per-slot served flags. The solution uses one lock, `bar_lock`, to protect all
+of this state. Customers and bartenders communicate with three condition
+variables:
 
-## How We Solved It
-We used a **Ticket-based Queue System** synchronized by a single lock and two Condition Variables. This models a real-world deli counter or DMV where arriving customers take a numbered ticket.
+`order_cv`: bartenders wait here before the first order arrives.
 
-### Steps Implemented
-1.  **State Variables**:
-    *   `next_ticket`: A counter that issues monotonically increasing ticket numbers.
-    *   `is_served[MAX_TICKETS]`: A boolean array marking whether a specific ticket has been completed.
-    *   `served_drink[MAX_TICKETS]`: An array storing the ID of the drink prepared for that specific ticket.
-2.  **Synchronization Primitives**:
-    *   `bar_lock`: Protects all the arrays and the `next_ticket` counter.
-    *   `order_cv`: Bartenders sleep on this until `next_ticket > 0` (meaning at least one customer has ordered).
-    *   `served_cv`: Customers sleep on this until their specific ticket's `is_served` flag becomes true.
-3.  **Customer Logic (`bar_enter`)**:
-    *   A customer acquires the lock and grabs `my_ticket = next_ticket++`.
-    *   They wake up sleeping bartenders by calling `cv_signal(order_cv)`.
-    *   They enter a `while(!is_served[my_ticket])` loop and wait on `served_cv`.
-    *   Once woken up and served, they retrieve their drink from `served_drink[my_ticket]` and leave.
-4.  **Bartender Logic (`bar_mix`)**:
-    *   A bartender acquires the lock and waits on `order_cv` if there are no tickets.
-    *   They loop through the tickets starting from 0 to find the oldest ticket where `is_served` is false (ensuring strict FIFO ordering).
-    *   They assign a drink ID to that ticket, set its `is_served` flag to true, and call `cv_broadcast(served_cv)` to wake up the customers so the correct one can recognize their ticket is ready.
+`served_cv`: customers wait here until their own slot is marked served.
 
-## Commands to Compile and Run
-1.  **Enter the container:**
-    ```bash
-    docker exec -it polito-os161 /bin/bash
-    ```
-2.  **Rebuild the kernel:**
-    ```bash
-    cd /home/os161user/os161/src/kern/compile/DUMBVM
-    bmake depend && bmake && bmake install
-    ```
-3.  **Run the kernel and execute the bar test (`1c`):**
-    ```bash
-    cd /home/os161user/os161/root
-    sys161 kernel "1c;q"
-    ```
+`slot_cv`: customers wait here if all reusable order slots are occupied.
 
-You will see the output detailing each customer getting served by the bartenders, maintaining correct order without any deadlocks.
+A customer entering the bar takes a free slot, stores its customer id, and
+pushes the slot number into a circular FIFO queue. It then signals
+`order_cv` and sleeps on `served_cv` until that exact slot is served. After
+waking, the customer frees the slot and signals `slot_cv`, allowing later
+orders to reuse the storage.
+
+A bartender removes the oldest slot number from the FIFO queue, assigns a
+drink id, marks the slot served, and broadcasts to `served_cv`. Only the
+customer whose slot was served can pass its `while (!served)` check. This
+keeps FIFO order without losing the connection between an order and the
+customer waiting for it.
+
+The earlier fixed-ticket solution could overflow after enough total orders.
+This implementation reuses a bounded number of slots safely, so total orders
+can exceed `BAR_QUEUE_SIZE` as long as no more than that many are outstanding
+at the same time. `bar_mix` returns a boolean in this local driver so the
+bartender statistics count real drinks only.
+
+Expected result: `sys161 kernel "1c;q"` exits cleanly, every customer thread
+finishes, and the total drinks served by bartenders matches the number of
+customer rounds.

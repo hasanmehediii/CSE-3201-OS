@@ -28,9 +28,11 @@ static
 void
 producer(void *p, unsigned long which)
 {
-	(void)p;
 	int i;
 	struct pc_data item;
+
+	(void)p;
+
 	for (i = 0; i < ITEMS_PER_PRODUCER; i++) {
 		item.value1 = (int)which;
 		item.value2 = i;
@@ -49,9 +51,11 @@ static
 void
 consumer(void *p, unsigned long which)
 {
-	(void)p;
 	struct pc_data item;
 	int local_count = 0;
+
+	(void)p;
+
 	while (consumer_consume(&item)) {
 		local_count++;
 		lock_acquire(stats_lock);
@@ -65,10 +69,10 @@ consumer(void *p, unsigned long which)
 
 int run_producerconsumer(int nargs, char **args)
 {
+	int i, err;
+
 	(void)nargs;
 	(void)args;
-
-	int i, err;
 
 	produced_total = 0;
 	consumed_total = 0;
