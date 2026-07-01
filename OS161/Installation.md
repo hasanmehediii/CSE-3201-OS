@@ -37,3 +37,7 @@ docker run --volume polito-os161-vol:/home/os161user --name polito-os161 -itd ma
 ```
 docker exec -it polito-os161 /bin/bash
 ```
+## Compile OS161 Kernel
+```
+cd ~/os161/src/kern/conf && ./config DUMBVM && cd ../compile/DUMBVM/ && bmake && bmake install && cd ~/os161/root && sys161 kernel
+```
