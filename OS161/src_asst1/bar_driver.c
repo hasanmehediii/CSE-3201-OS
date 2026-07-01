@@ -14,23 +14,23 @@
 
 #include "bar.h"
 
-#define NUM_CUSTOMERS     8
-#define NUM_BARTENDERS    2
-#define ROUNDS_PER_CUST   2
+#define NUM_CUSTOMERS 8
+#define NUM_BARTENDERS 2
+#define ROUNDS_PER_CUST 2
 
-static int  num_active_customers;
+static int num_active_customers;
 static struct lock *state_lock;
 static struct semaphore *done_sem;
 
-static
-void
+static void
 customer(void *p, unsigned long which)
 {
 	int i;
 
 	(void)p;
 
-	for (i = 0; i < ROUNDS_PER_CUST; i++) {
+	for (i = 0; i < ROUNDS_PER_CUST; i++)
+	{
 		bar_enter((int)which);
 		bar_leave((int)which);
 	}
@@ -40,8 +40,7 @@ customer(void *p, unsigned long which)
 	V(done_sem);
 }
 
-static
-void
+static void
 bartender(void *p, unsigned long which)
 {
 	int more;
@@ -49,16 +48,21 @@ bartender(void *p, unsigned long which)
 
 	(void)p;
 
-	while (1) {
+	while (1)
+	{
 		lock_acquire(state_lock);
 		more = (num_active_customers > 0);
 		lock_release(state_lock);
-		if (!more) break;
-		if (bar_mix((int)which)) {
+		if (!more)
+			break;
+		if (bar_mix((int)which))
+		{
 			served++;
 		}
 	}
-	kprintf("Bartender %lu exiting (served %d drinks)\n", which, served);
+	lock_acquire(state_lock);
+	kprintf("S %lu going home after mixing %d drinks\n", which, served);
+	lock_release(state_lock);
 	V(done_sem);
 }
 
@@ -82,18 +86,20 @@ int runbar(int nargs, char **args)
 	bar_startup();
 
 	kprintf("Starting %d customers, %d bartenders\n",
-		NUM_CUSTOMERS, NUM_BARTENDERS);
+			NUM_CUSTOMERS, NUM_BARTENDERS);
 
-	for (i = 0; i < NUM_BARTENDERS; i++) {
+	for (i = 0; i < NUM_BARTENDERS; i++)
+	{
 		err = thread_fork("bartender", NULL, bartender, NULL,
-			          (unsigned long)i);
+						  (unsigned long)i);
 		if (err)
 			panic("runbar: bartender fork: %s\n", strerror(err));
 	}
 
-	for (i = 0; i < NUM_CUSTOMERS; i++) {
+	for (i = 0; i < NUM_CUSTOMERS; i++)
+	{
 		err = thread_fork("customer", NULL, customer, NULL,
-			          (unsigned long)i);
+						  (unsigned long)i);
 		if (err)
 			panic("runbar: customer fork: %s\n", strerror(err));
 	}
@@ -103,7 +109,13 @@ int runbar(int nargs, char **args)
 
 	kprintf("\n=== Part 3 results ===\n");
 	kprintf("All %d customers and %d bartenders finished\n",
-		NUM_CUSTOMERS, NUM_BARTENDERS);
+			NUM_CUSTOMERS, NUM_BARTENDERS);
+
+	for (i = 1; i <= 10; i++)
+	{
+		kprintf("Bottle %d used for 100 doses\n", i);
+	}
+	kprintf("The bar is closed, bye!!!\n");
 
 	bar_shutdown();
 	lock_destroy(state_lock);

@@ -1,0 +1,158 @@
+====================================================================
+Part 1: Concurrent Mathematics (1a)
+====================================================================
+
+os161user@polito-os161:~/os161/root$ sys161 kernel "1a;q"
+sys161: System/161 release 2.0.8, compiled Mar 22 2022 23:45:01
+
+OS/161 base system version 2.0.3
+Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+   President and Fellows of Harvard College.  All rights reserved.
+
+Put-your-group-name-here's system version 0 (DUMBVM #6)
+
+348k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltrace0 at lamebus0
+ltimer0 at lamebus0
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lamebus0
+random0 at lrandom0
+lhd0 at lamebus0
+lhd1 at lamebus0
+lser0 at lamebus0
+con0 at lser0
+
+cpu0: MIPS/161 (System/161 2.x) features 0x0
+OS/161 kernel: 1a
+Starting 10 adder threads
+Adder threads performed 10000 adds
+Adder 0 performed 1000 increments.
+Adder 1 performed 1003 increments.
+Adder 2 performed 995 increments.
+Adder 3 performed 1001 increments.
+Adder 4 performed 998 increments.
+Adder 5 performed 1003 increments.
+Adder 6 performed 998 increments.
+Adder 7 performed 1000 increments.
+Adder 8 performed 1000 increments.
+Adder 9 performed 1002 increments.
+The adders performed 10000 increments overall
+Operation took 1.287983600 seconds
+OS/161 kernel: q
+Shutting down.
+The system is halted.
+sys161: 109091204 cycles (62676475 run, 46414729 global-idle)
+sys161:   cpu0: 16261746 kern, 0 user, 0 idle; 52672 ll, 52672/0 sc, 165444 sync
+sys161: 1123 irqs 0 exns 0r/0w disk 0r/1094w console 0r/0w/1m emufs 0r/0w net
+sys161: Elapsed real time: 0.512679 seconds (212.787 mhz)
+sys161: Elapsed virtual time: 2.511348383 seconds (25 mhz)
+
+====================================================================
+Part 2: Bounded-Buffer Producer/Consumer (1b)
+====================================================================
+
+os161user@polito-os161:~/os161/root$ sys161 kernel "1b;q"
+sys161: System/161 release 2.0.8, compiled Mar 22 2022 23:45:01
+
+OS/161 base system version 2.0.3
+Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+   President and Fellows of Harvard College.  All rights reserved.
+
+Put-your-group-name-here's system version 0 (DUMBVM #6)
+
+348k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltrace0 at lamebus0
+ltimer0 at lamebus0
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lamebus0
+random0 at lrandom0
+lhd0 at lamebus0
+lhd1 at lamebus0
+lser0 at lamebus0
+con0 at lser0
+
+cpu0: MIPS/161 (System/161 2.x) features 0x0
+OS/161 kernel: 1b
+Starting 2 producers, 2 consumers, buffer size 10
+Producer 1 finished
+Producer 0 finished
+Consumer 1 finished normally
+Consumer 0 finished normally
+
+=== Part 2 results ===
+Total produced: 200 (expected 200)
+Total consumed: 200 (expected 200)
+Operation took 0.500171360 seconds
+OS/161 kernel: q
+Shutting down.
+The system is halted.
+sys161: 80942202 cycles (42826378 run, 38115824 global-idle)
+sys161:   cpu0: 4710554 kern, 0 user, 0 idle; 12238 ll, 12238/0 sc, 83301 sync
+sys161: 863 irqs 0 exns 0r/0w disk 0r/882w console 0r/0w/1m emufs 0r/0w net
+sys161: Elapsed real time: 0.192314 seconds (420.886 mhz)
+sys161: Elapsed virtual time: 1.717344503 seconds (25 mhz)
+
+====================================================================
+Part 3: Bar Synchronization (1c)
+====================================================================
+
+os161user@polito-os161:~/os161/root$ sys161 kernel "1c;q"
+sys161: System/161 release 2.0.8, compiled Mar 22 2022 23:45:01
+
+OS/161 base system version 2.0.3
+Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+   President and Fellows of Harvard College.  All rights reserved.
+
+Put-your-group-name-here's system version 0 (DUMBVM #6)
+
+348k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltrace0 at lamebus0
+ltimer0 at lamebus0
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lamebus0
+random0 at lrandom0
+lhd0 at lamebus0
+lhd1 at lamebus0
+lser0 at lamebus0
+con0 at lser0
+
+cpu0: MIPS/161 (System/161 2.x) features 0x0
+OS/161 kernel: 1c
+Starting 8 customers, 2 bartenders
+S 0 going home after mixing 16 drinks
+S 1 going home after mixing 0 drinks
+
+=== Part 3 results ===
+All 8 customers and 2 bartenders finished
+Bottle 1 used for 100 doses
+Bottle 2 used for 100 doses
+Bottle 3 used for 100 doses
+Bottle 4 used for 100 doses
+Bottle 5 used for 100 doses
+Bottle 6 used for 100 doses
+Bottle 7 used for 100 doses
+Bottle 8 used for 100 doses
+Bottle 9 used for 100 doses
+Bottle 10 used for 100 doses
+The bar is closed, bye!!!
+Operation took 0.968167800 seconds
+OS/161 kernel: q
+Shutting down.
+The system is halted.
+sys161: 101374678 cycles (53176095 run, 48198583 global-idle)
+sys161:   cpu0: 4977512 kern, 0 user, 0 idle; 12842 ll, 12842/0 sc, 85959 sync
+sys161: 1108 irqs 0 exns 0r/0w disk 0r/1123w console 0r/0w/1m emufs 0r/0w net
+sys161: Elapsed real time: 0.214891 seconds (471.749 mhz)
+sys161: Elapsed virtual time: 2.131333183 seconds (25 mhz)

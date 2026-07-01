@@ -1,0 +1,234 @@
+https://cgi.cse.unsw.edu.au/~cs3231/16s1/assignments/asst1/
+
+7. Coding Assignment
+We know: you've been itching to get to the coding. Well, you've finally arrived!
+
+This is the assessable component of this assignment.
+
+The following problems will give you the opportunity to write some fairly straightforward concurrent programs and get a more detailed understanding of how to use concurrency mechanisms to solve problems. We have provided you with basic driver code that starts a predefined number of threads that execute a predefined activity (in the form of calling functions that you must implement or modify).
+
+Remember to specify a seed to use in the random number generator by editing your sys161.conf file, and run your tests using Sys/161 command line args. It is much easier to debug initial problems when the sequence of execution and context switches is reproducible.
+
+When you configure your kernel for ASST1, the driver code and extra menu options for executing your solutions are automatically compiled in.
+
+Part 1: Concurrent Mathematics Problem
+For the first problem, we ask you to solve a very simple mutual exclusion problem. The code in kern/asst1/math.c counts from 0 to 10000 by starting several threads that increment a common counter.
+
+You will notice that as supplied, the code operates incorrectly and produces results like 345 + 1 = 352.
+
+Once the count of 10000 is reached, each thread signals the main thread that it is finished and then exits. Once all adder() threads exit, the main (math()) thread cleans up and exits.
+
+Your Job
+Your job is to modify math.c by placing synchronisation primitives appropriately such that incrementing the counter works correctly. The statistics printed should also be consistent with the overall count.
+
+Note that the number of increments each thread performs is dependent on scheduling and hence will vary. However, the total should equal the final count.
+
+To test your solution, use the "1a" menu choice. Sample output from a correct solution in included below.
+
+% sys161 kernel "1a;q"
+ys161: System/161 release 2.0.2, compiled Feb 26 2015 18:41:37
+
+OS/161 base system version 2.0.2
+(with locks&CVs solution)
+Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+   President and Fellows of Harvard College.  All rights reserved.
+
+Put-your-group-name-here's system version 0 (ASST1 #1)
+
+1804k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltrace0 at lamebus0
+ltimer0 at lamebus0
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lamebus0
+random0 at lrandom0
+lser0 at lamebus0
+con0 at lser0
+
+cpu0: MIPS/161 (System/161 2.x) features 0x0
+OS/161 kernel: 1a
+Starting 10 adder threads
+Adder threads performed 10000 adds
+Adder 0 performed 919 increments.
+Adder 1 performed 1037 increments.
+Adder 2 performed 867 increments.
+Adder 3 performed 1087 increments.
+Adder 4 performed 1059 increments.
+Adder 5 performed 905 increments.
+Adder 6 performed 1132 increments.
+Adder 7 performed 997 increments.
+Adder 8 performed 958 increments.
+Adder 9 performed 1039 increments.
+The adders performed 10000 increments overall
+Operation took 4.268131880 seconds
+OS/161 kernel: q
+Shutting down.
+The system is halted.
+sys161: 138026250 cycles (138026250 run, 0 global-idle)
+sys161:   cpu0: 94167964 kern, 0 user, 0 idle; 146194 ll, 146194/0 sc, 312241 sync
+sys161: 36389 irqs 0 exns 0r/0w disk 0r/1084w console 0r/0w/1m emufs 0r/0w net
+sys161: Elapsed real time: 4.128787 seconds (33.4302 mhz)
+sys161: Elapsed virtual time: 5.525339383 seconds (25 mhz)
+Part 2: Bounded-buffer producer/consumer problem
+Your second task in this assignment is to implement a solution to a standard producer/consumer problem. In the producer/consumer problem one or more producer threads put data into a fixed-sized buffer while one or more consumer threads process information from the same buffer.
+
+The code in kern/asst1/producerconsumer_driver.c starts up a number of producer and consumer threads. The producer threads attempt to communicate with the consumer threads by calling the producer_produce() function with a data structure. In turn, the consumer threads attempt to receive information from the producer threads by calling consumer_consume(). Unfortunately, these functions are currently unimplemented. Your job is to implement them.
+
+Here's what you will see before you have implemented any code:
+
+OS/161 kernel [? for menu]: 1b
+run_producerconsumer: starting up
+Waiting for producer threads to exit...
+Consumer started
+Consumer started
+Producer started
+Producer started
+Producer finished
+Consumer started
+Producer finished
+Consumer started
+Consumer started
+All producer threads have exited.
+*** Error! Consumer bored, exiting...
+*** Error! Consumer bored, exiting...
+*** Error! Consumer bored, exiting...
+*** Error! Consumer bored, exiting...
+*** Error! Consumer bored, exiting...
+Operation took 0.402660000 seconds
+OS/161 kernel [? for menu]: 
+And here's what you will see with a (possibly partially) correct solution:
+
+OS/161 kernel [? for menu]: 1b
+run_producerconsumer: starting up
+Consumer started
+Consumer started
+Consumer started
+Waiting for producer threads to exit...
+Producer started
+Consumer started
+Producer started
+Producer finished
+Consumer started
+Producer finished
+All producer threads have exited.
+Consumer finished normally
+Consumer finished normally
+Consumer finished normally
+Consumer finished normally
+Consumer finished normally
+Operation took 0.232509280 seconds
+OS/161 kernel [? for menu]: 
+The files:
+producerconsumer_driver.c: Starts the producer/consumer simulation by creating appropriate producer and consumer threads that will call producer_produce() and consumer_consume(). You are welcome to (in fact, you are encouraged to) modify this simulation when testing your implementation, but remember that it will be overwritten when your solution is tested.
+producerconsumer_driver.h: Contains prototypes for the functions in producerconsumer.c, as well as the description of the data structure that is passed from producer to consumer (uninterestingly named pc_data). This file will also be overwritten when your solution is tested.
+producerconsumer.c: Contains your implementation of producer_produce() and consumer_consume(). It also contains the functions producerconsumer_startup() and producerconsumer_shutdown(), which you can implement to initialise your data structure and any synchronisation primitives you may need.
+How to implement your solution
+You must implement a data structure representing a buffer capable of holding at least BUFFER_SIZE struct pc_data items. This means that calling producer_produce() BUFFER_SIZE times should not block (or overwrite existing items, of course), but calling producer_produce one more time should block, until data has been removed from the buffer using consumer_consume(). A simple way to implement this data structure is to use an array, though you will of course have to use appropriate synchronisation primitives to ensure that concurrent access is handled safely.
+
+Your data structure should function as a circular buffer with first-in, first-out semantics.
+
+Part 3: Bar synchronisation
+It's Tuesday night, you have finished your lecture, and you decide to unwind, relax, and head to the bar for a drink. When you arrive you find the bar in complete chaos. Customers are receiving empty glasses, bar tenders are fighting over drink supplies, orders are getting lost, drinks are being mixed up, some customers are waiting forever for their first drink, while others have already passed out on the floor.
+
+Being an operating system expert, you quickly realise that the bar's problems are related to concurrency issues between the customers and bartenders. You volunteer your services to provide a solution to the bar's problems, reduce the chaos, and restore order to the bar.
+
+For the assignment, this means completing missing components of a software model of the bar with appropriate data structures and synchronisation. A detailed description of the behaviour of the model is contained in the code itself in bar.c, bar_driver.c and the corresponding header files.
+
+System Details
+To provide a solution, you must come to terms with the basic elements of the bar that you have to work with. The bar consists of a set of bottles containing various drinks such as BEER, GIN, and VODKA, that are used to pour drinks for customers. Customers arrive at the bar and give their order to a bartender, who then pours their drink using one or more bottles. The basic elements are defined in kern/asst1/bar_driver.h. The actions of customers and bartenders are defined in kern/asst1/bar_driver.c. See the file for detailed comments.
+
+Customers arrive and give their order to a bartender, then wait for their drink. Eventually they get their drink, drink it, then give another order to the bartender until they've had enough and go home.
+Bartenders are only slightly more complicated than the customers. They take orders, and if valid, they fill them and serve them. When all the customers have left, the bartenders go home. An invalid order is used to signal that the staff member should go home.
+The function runbar() is called via the menu in OS/161 (item 1c). runbar() does the following:
+
+It initialises all the bottles to have served zero doses.
+It calls bar_open(), a routine you will provide to set up the bar.
+It then creates some threads to run as bartenders, and some more threads to run as customers. Note these threads obviously run concurrently.
+The driver thread then waits on a semaphore for all the bartenders and customers to finish, after which we print out the bottle statistics for the evening.
+Finally, it calls bar_close(), a procedure you provide to clean up when the bar has closed.
+The function mix() takes up to three basic ingredients (from a customer) and mixes a drink from each of the appropriate bottles into a glass. The ingredients are represented by numbers, each number corresponds to the selected bottle number. Note the contents of the glass is also represented by an array of numbers (ingredients). The meaning of the bottle numbers are defined in bar.h.
+
+You can assume that all bottles in the bar are infinite in size and hence will never be empty. You may similarly assume that there is never any danger of running out of fresh glasses for customers.
+
+Have a quick look through both bar_driver.c and bar_driver.h to reinforce your understanding of what is going on (well, at least what is expected to go on).
+
+Before Coding!!!!
+You should have a very good idea of what you're attempting to do before you start. Concurrency problems are very difficult to debug, so it's in your best interest that you convince yourself you have a correct solution before you start.
+The following questions may help you develop your solution.
+
+What are the shared resources (e.g. bottles)?
+Who shares what resources?
+Who produces what and who consumes what (e.g. customers produce orders consumed by bartenders)?
+What states can the various resources be in?
+What do you need to keep a count of (e.g. number of customers in the bar)?
+How does your solution prevent deadlock or starvation (in this case, dehydration)?
+Try to frame the problem in terms of resources requiring concurrency control, waiting for events, and producer-consumer problems. A diagram may help you to understand the problem.
+Your Job
+Your job is to write the functions outlined in bar.c that perform most of the work (and potentially modify bar.h). Each function is described in bar.c.
+
+Generally, your solution must result in the following when runbar() is called during testing.
+
+The bar being prepared for opening.
+All customers having their orders served with the correct drinks in a glass. "Correct" means that each corresponding entry in the contents array contains what was originally requested in the requested array.
+The bartenders all going home after all the customers are finished.
+The bar being suitably cleaned up afterwards (allocated memory or locks, semaphores, etc. being freed).
+Statistics kept on bottle usage are consistent with the orders made.
+You can modify bar_driver.c and bar_driver.h to test different scenarios (e.g. vary the number and type of drinks ordered), but your solution must also work with an unmodified version of the bar_driver.c file, and any variation we choose that validly exercises the model of the bar.
+
+You will have to modify bar.c to implement your solution. However, your modifications have the constraint that they must still work with an original bar_driver.c.
+
+For testing, we will replace bar_driver.c and .h with logically equivalent versions that may vary the numbers of participants, and the drinks requested. We may also vary the timing of various functions. A correct solution will work for all variations we test. Sample output from a correct solution is included below.
+
+To test your solution, use sys161 kernel "1c;q". Sample output from a working solution is included below.
+
+% sys161 kernel '1c;q'
+sys161: System/161 release 2.0.2, compiled Feb 26 2015 18:41:37
+
+OS/161 base system version 2.0.2
+(with locks&CVs solution)
+Copyright (c) 2000, 2001-2005, 2008-2011, 2013, 2014
+   President and Fellows of Harvard College.  All rights reserved.
+
+Put-your-group-name-here's system version 0 (ASST1 #1)
+
+1804k physical memory available
+Device probe...
+lamebus0 (system main bus)
+emu0 at lamebus0
+ltrace0 at lamebus0
+ltimer0 at lamebus0
+beep0 at ltimer0
+rtclock0 at ltimer0
+lrandom0 at lamebus0
+random0 at lrandom0
+lser0 at lamebus0
+con0 at lser0
+
+cpu0: MIPS/161 (System/161 2.x) features 0x0
+OS/161 kernel: 1c
+S 2 going home after mixing 34 drinks
+S 1 going home after mixing 30 drinks
+S 0 going home after mixing 36 drinks
+Bottle 1 used for 100 doses
+Bottle 2 used for 0 doses
+Bottle 3 used for 0 doses
+Bottle 4 used for 0 doses
+Bottle 5 used for 0 doses
+Bottle 6 used for 0 doses
+Bottle 7 used for 0 doses
+Bottle 8 used for 0 doses
+Bottle 9 used for 0 doses
+Bottle 10 used for 0 doses
+The bar is closed, bye!!!
+Operation took 1.335862280 seconds
+OS/161 kernel: q
+Shutting down.
+The system is halted.
+sys161: 64776579 cycles (64776579 run, 0 global-idle)
+sys161:   cpu0: 22963256 kern, 0 user, 0 idle; 31770 ll, 31770/0 sc, 83106 sync
+sys161: 7899 irqs 0 exns 0r/0w disk 0r/1035w console 0r/0w/1m emufs 0r/0w net
+sys161: Elapsed real time: 1.145118 seconds (56.5676 mhz)
+sys161: Elapsed virtual time: 2.595352543 seconds (25 mhz)

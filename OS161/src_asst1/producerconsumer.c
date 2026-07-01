@@ -17,6 +17,7 @@ static unsigned buffer_count;
 static struct lock *pc_lock;
 static struct cv *not_full_cv;
 static struct cv *not_empty_cv;
+static struct lock *print_lock;
 
 static int active_producers;
 
@@ -28,18 +29,27 @@ void producerconsumer_startup(void)
 	active_producers = 0;
 
 	pc_lock = lock_create("pc_lock");
-	if (pc_lock == NULL) {
+	if (pc_lock == NULL)
+	{
 		panic("producerconsumer_startup: lock_create failed\n");
 	}
 
 	not_full_cv = cv_create("not_full_cv");
-	if (not_full_cv == NULL) {
+	if (not_full_cv == NULL)
+	{
 		panic("producerconsumer_startup: cv_create failed (not_full)\n");
 	}
 
 	not_empty_cv = cv_create("not_empty_cv");
-	if (not_empty_cv == NULL) {
+	if (not_empty_cv == NULL)
+	{
 		panic("producerconsumer_startup: cv_create failed (not_empty)\n");
+	}
+
+	print_lock = lock_create("print_lock");
+	if (print_lock == NULL)
+	{
+		panic("producerconsumer_startup: lock_create failed (print_lock)\n");
 	}
 }
 
@@ -48,13 +58,15 @@ void producerconsumer_shutdown(void)
 	cv_destroy(not_full_cv);
 	cv_destroy(not_empty_cv);
 	lock_destroy(pc_lock);
+	lock_destroy(print_lock);
 }
 
 void producer_produce(struct pc_data *item)
 {
 	lock_acquire(pc_lock);
 
-	while (buffer_count == BUFFER_SIZE) {
+	while (buffer_count == BUFFER_SIZE)
+	{
 		cv_wait(not_full_cv, pc_lock);
 	}
 
@@ -70,11 +82,13 @@ bool consumer_consume(struct pc_data *item)
 {
 	lock_acquire(pc_lock);
 
-	while (buffer_count == 0 && active_producers > 0) {
+	while (buffer_count == 0 && active_producers > 0)
+	{
 		cv_wait(not_empty_cv, pc_lock);
 	}
 
-	if (buffer_count == 0) {
+	if (buffer_count == 0)
+	{
 		lock_release(pc_lock);
 		return false;
 	}
@@ -101,7 +115,8 @@ void producerconsumer_mark_producer_done(void)
 	active_producers--;
 	KASSERT(active_producers >= 0);
 
-	if (active_producers == 0) {
+	if (active_producers == 0)
+	{
 		cv_broadcast(not_empty_cv, pc_lock);
 	}
 

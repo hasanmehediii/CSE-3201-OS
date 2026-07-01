@@ -1,70 +1,65 @@
 /*
- * Part 2 driver. Spawns NUM_PRODUCERS producers and NUM_CONSUMERS
- * consumers. Each producer pushes ITEMS_PER_PRODUCER items then V()s the
- * done semaphore. Each consumer drains the buffer until all producers
- * have exited (and the buffer is empty), then V()s the done semaphore.
- * The parent P()s once per child so the menu only unblocks after
- * everyone is finished.
+ * Producer/consumer driver matching the original UNSW ASST1 format.
+ *
+ * Spawns NUM_CONSUMERS consumers first, then NUM_PRODUCERS producers.
+ * The main thread waits for all producers, then waits for all consumers.
  */
 #include <types.h>
 #include <lib.h>
 #include <thread.h>
 #include <synch.h>
 #include <test.h>
+#include <clock.h>
 
 #include "producerconsumer_driver.h"
 
-#define NUM_PRODUCERS     2
-#define NUM_CONSUMERS     2
+#define NUM_PRODUCERS 2
+#define NUM_CONSUMERS 5
 #define ITEMS_PER_PRODUCER 100
 
-static struct semaphore *done_sem;
+static struct semaphore *prod_sem;
+static struct semaphore *cons_sem;
 
-static int produced_total;
-static int consumed_total;
-static struct lock *stats_lock;
-
-static
-void
+static void
 producer(void *p, unsigned long which)
 {
 	int i;
 	struct pc_data item;
 
 	(void)p;
+	(void)which;
 
-	for (i = 0; i < ITEMS_PER_PRODUCER; i++) {
+	kprintf("Producer started\n");
+
+	for (i = 0; i < ITEMS_PER_PRODUCER; i++)
+	{
 		item.value1 = (int)which;
 		item.value2 = i;
 		producer_produce(&item);
-		lock_acquire(stats_lock);
-		produced_total++;
-		lock_release(stats_lock);
 	}
+
 	producerconsumer_mark_producer_done();
-	kprintf("Producer %lu exiting (made %d items)\n",
-		which, ITEMS_PER_PRODUCER);
-	V(done_sem);
+	kprintf("Producer finished\n");
+	V(prod_sem);
 }
 
-static
-void
+static void
 consumer(void *p, unsigned long which)
 {
 	struct pc_data item;
-	int local_count = 0;
 
 	(void)p;
+	(void)which;
 
-	while (consumer_consume(&item)) {
-		local_count++;
-		lock_acquire(stats_lock);
-		consumed_total++;
-		lock_release(stats_lock);
+	kprintf("Consumer started\n");
+
+	while (consumer_consume(&item))
+	{
+		/* process item (nothing to do here) */
 	}
-	kprintf("Consumer %lu exiting (got %d items)\n",
-		which, local_count);
-	V(done_sem);
+
+	kprintf("Consumer finished normally\n");
+	V(cons_sem);
 }
 
 int run_producerconsumer(int nargs, char **args)
@@ -74,51 +69,55 @@ int run_producerconsumer(int nargs, char **args)
 	(void)nargs;
 	(void)args;
 
-	produced_total = 0;
-	consumed_total = 0;
+	prod_sem = sem_create("prod_sem", 0);
+	if (prod_sem == NULL)
+		panic("run_producerconsumer: prod_sem create failed\n");
 
-	stats_lock = lock_create("stats_lock");
-	if (stats_lock == NULL)
-		panic("run_producerconsumer: stats lock create failed\n");
-
-	done_sem = sem_create("done_sem", 0);
-	if (done_sem == NULL)
-		panic("run_producerconsumer: done_sem create failed\n");
+	cons_sem = sem_create("cons_sem", 0);
+	if (cons_sem == NULL)
+		panic("run_producerconsumer: cons_sem create failed\n");
 
 	producerconsumer_startup();
 
-	kprintf("Starting %d producers, %d consumers, buffer size %d\n",
-		NUM_PRODUCERS, NUM_CONSUMERS, BUFFER_SIZE);
+	kprintf("run_producerconsumer: starting up\n");
 
-	for (i = 0; i < NUM_PRODUCERS; i++) {
-		producerconsumer_inc_producers();
-		err = thread_fork("producer", NULL, producer, NULL,
-			          (unsigned long)i);
-		if (err)
-			panic("run_producerconsumer: producer fork: %s\n",
-			      strerror(err));
-	}
-
-	for (i = 0; i < NUM_CONSUMERS; i++) {
+	/* Fork consumer threads first */
+	for (i = 0; i < NUM_CONSUMERS; i++)
+	{
 		err = thread_fork("consumer", NULL, consumer, NULL,
-			          (unsigned long)i);
+						  (unsigned long)i);
 		if (err)
 			panic("run_producerconsumer: consumer fork: %s\n",
-			      strerror(err));
+				  strerror(err));
 	}
 
-	for (i = 0; i < NUM_PRODUCERS + NUM_CONSUMERS; i++)
-		P(done_sem);
+	/* Fork producer threads */
+	for (i = 0; i < NUM_PRODUCERS; i++)
+	{
+		producerconsumer_inc_producers();
+		err = thread_fork("producer", NULL, producer, NULL,
+						  (unsigned long)i);
+		if (err)
+			panic("run_producerconsumer: producer fork: %s\n",
+				  strerror(err));
+	}
 
-	kprintf("\n=== Part 2 results ===\n");
-	kprintf("Total produced: %d (expected %d)\n",
-		produced_total, NUM_PRODUCERS * ITEMS_PER_PRODUCER);
-	kprintf("Total consumed: %d (expected %d)\n",
-		consumed_total, NUM_PRODUCERS * ITEMS_PER_PRODUCER);
+	kprintf("Waiting for producer threads to exit...\n");
+
+	/* Wait for all producers to finish */
+	for (i = 0; i < NUM_PRODUCERS; i++)
+		P(prod_sem);
+
+	kprintf("All producer threads have exited.\n");
+
+	/* Wait for all consumers to finish */
+	for (i = 0; i < NUM_CONSUMERS; i++)
+		P(cons_sem);
 
 	producerconsumer_shutdown();
-	lock_destroy(stats_lock);
-	sem_destroy(done_sem);
+
+	sem_destroy(prod_sem);
+	sem_destroy(cons_sem);
 
 	return 0;
 }
