@@ -25,7 +25,9 @@ docker volume create --driver local \
 ```
 docker volume inspect polito-os161-vol
 ```
-
+```
+docker cp polito-os161:/home/os161user/os161 ~/os161
+```
 ## Run the Container
 
 ```bash
