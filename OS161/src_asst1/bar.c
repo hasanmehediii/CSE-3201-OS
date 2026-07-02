@@ -177,6 +177,10 @@ bool bar_mix(int bartender_id)
 
 	cv_broadcast(served_cv, bar_lock);
 	lock_release(bar_lock);
+
+	/* Yield CPU so other bartenders can take orders */
+	thread_yield();
+
 	return true;
 }
 

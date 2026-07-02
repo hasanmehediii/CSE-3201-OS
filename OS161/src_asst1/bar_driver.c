@@ -1,11 +1,3 @@
-/*
- * Part 3 driver.
- *
- * Customers and bartenders are forked; the parent waits on a join
- * semaphore that each child V()s on exit. The customer gets a few
- * rounds of drinks; the bartender mixes until all customers have
- * stopped entering (signalled via num_active_customers).
- */
 #include <types.h>
 #include <lib.h>
 #include <thread.h>
@@ -111,10 +103,8 @@ int runbar(int nargs, char **args)
 	kprintf("All %d customers and %d bartenders finished\n",
 			NUM_CUSTOMERS, NUM_BARTENDERS);
 
-	for (i = 1; i <= 10; i++)
-	{
-		kprintf("Bottle %d used for 100 doses\n", i);
-	}
+	int total_drinks = NUM_CUSTOMERS * ROUNDS_PER_CUST;
+	kprintf("Total %d drinks were served successfully.\n", total_drinks);
 	kprintf("The bar is closed, bye!!!\n");
 
 	bar_shutdown();
