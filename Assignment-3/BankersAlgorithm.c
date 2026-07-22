@@ -1,315 +1,327 @@
 #include <stdio.h>
-#include <stdbool.h>
 
-#define MAX_PROCESSES 20
+#define NUMBER_OF_PROCESSES 4
 #define MAX_RESOURCES 20
 
-void calculateNeed(
-    int processes,
-    int resources,
-    int need[MAX_PROCESSES][MAX_RESOURCES],
-    int max[MAX_PROCESSES][MAX_RESOURCES],
-    int allocation[MAX_PROCESSES][MAX_RESOURCES]
-) {
-    for (int i = 0; i < processes; i++) {
-        for (int j = 0; j < resources; j++) {
-            need[i][j] = max[i][j] - allocation[i][j];
+int main(void)
+{
+    int m;
+
+    int existing[MAX_RESOURCES];
+    int available[MAX_RESOURCES];
+    int work[MAX_RESOURCES];
+    int columnSum[MAX_RESOURCES];
+
+    int allocation[NUMBER_OF_PROCESSES][MAX_RESOURCES];
+    int maximum[NUMBER_OF_PROCESSES][MAX_RESOURCES];
+    int need[NUMBER_OF_PROCESSES][MAX_RESOURCES];
+
+    int finish[NUMBER_OF_PROCESSES] = {0};
+    int safeSequence[NUMBER_OF_PROCESSES];
+
+    int completed = 0;
+    int processFound;
+    int canRun;
+
+    printf("Banker's Algorithm - Safe State Detection\n");
+    printf("-----------------------------------------\n");
+
+    printf("Number of processes is fixed at %d.\n",
+           NUMBER_OF_PROCESSES);
+
+    printf("Enter number of resource types: ");
+    scanf("%d", &m);
+
+    if (m <= 0 || m > MAX_RESOURCES)
+    {
+        printf("Invalid number of resource types.\n");
+        return 1;
+    }
+
+    /*
+     * Input Existing Resource vector.
+     */
+    printf("\nEnter Existing Resources (E):\n");
+
+    for (int j = 0; j < m; j++)
+    {
+        printf("E[%d]: ", j);
+        scanf("%d", &existing[j]);
+
+        if (existing[j] < 0)
+        {
+            printf("Resource values cannot be negative.\n");
+            return 1;
         }
     }
-}
 
-void printNeedMatrix(
-    int processes,
-    int resources,
-    int need[MAX_PROCESSES][MAX_RESOURCES]
-) {
-    printf("\nNeed Matrix:\n");
+    /*
+     * Input Allocation / Possessed matrix.
+     */
+    printf("\nEnter Allocation Matrix (P):\n");
 
-    for (int i = 0; i < processes; i++) {
-        printf("P%d: ", i);
+    for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+    {
+        printf("Allocation for P%d:\n", i);
 
-        for (int j = 0; j < resources; j++) {
-            printf("%d ", need[i][j]);
+        for (int j = 0; j < m; j++)
+        {
+            printf("P[%d][%d]: ", i, j);
+            scanf("%d", &allocation[i][j]);
+
+            if (allocation[i][j] < 0)
+            {
+                printf("Allocation cannot be negative.\n");
+                return 1;
+            }
+        }
+    }
+
+    /*
+     * Input Maximum Demand matrix.
+     */
+    printf("\nEnter Maximum Demand Matrix (Max):\n");
+
+    for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+    {
+        printf("Maximum demand for P%d:\n", i);
+
+        for (int j = 0; j < m; j++)
+        {
+            printf("Max[%d][%d]: ", i, j);
+            scanf("%d", &maximum[i][j]);
+
+            if (maximum[i][j] < allocation[i][j])
+            {
+                printf("\nInvalid input.\n");
+                printf("Max[%d][%d] cannot be smaller than ",
+                       i, j);
+                printf("Allocation[%d][%d].\n", i, j);
+
+                return 1;
+            }
+        }
+    }
+
+    /*
+     * Calculate Need matrix:
+     *
+     * Need[i][j] = Max[i][j] - Allocation[i][j]
+     */
+    for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+    {
+        for (int j = 0; j < m; j++)
+        {
+            need[i][j] =
+                maximum[i][j] - allocation[i][j];
+        }
+    }
+
+    /*
+     * Calculate the sum of each Allocation column.
+     */
+    for (int j = 0; j < m; j++)
+    {
+        columnSum[j] = 0;
+
+        for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+        {
+            columnSum[j] += allocation[i][j];
+        }
+    }
+
+    /*
+     * Calculate Available vector:
+     *
+     * Available[j] = Existing[j] - ColumnSum[j]
+     */
+    for (int j = 0; j < m; j++)
+    {
+        available[j] = existing[j] - columnSum[j];
+
+        if (available[j] < 0)
+        {
+            printf("\nInvalid system state.\n");
+            printf("Allocated amount of resource R%d ", j);
+            printf("is greater than the existing amount.\n");
+
+            return 1;
+        }
+    }
+
+    /*
+     * Print the computed Need matrix.
+     */
+    printf("\nComputed Need Matrix:\n");
+
+    printf("Process\t");
+
+    for (int j = 0; j < m; j++)
+    {
+        printf("R%d\t", j);
+    }
+
+    printf("\n");
+
+    for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+    {
+        printf("P%d\t", i);
+
+        for (int j = 0; j < m; j++)
+        {
+            printf("%d\t", need[i][j]);
         }
 
         printf("\n");
     }
-}
 
-bool isSafe(
-    int processes,
-    int resources,
-    int available[MAX_RESOURCES],
-    int allocation[MAX_PROCESSES][MAX_RESOURCES],
-    int need[MAX_PROCESSES][MAX_RESOURCES],
-    int safeSequence[MAX_PROCESSES]
-) {
-    int work[MAX_RESOURCES];
-    bool finish[MAX_PROCESSES] = {false};
+    /*
+     * Print the computed Available vector.
+     */
+    printf("\nComputed Available Vector:\n");
 
-    for (int j = 0; j < resources; j++) {
+    for (int j = 0; j < m; j++)
+    {
+        printf("R%d = %d", j, available[j]);
+
+        if (j < m - 1)
+        {
+            printf(", ");
+        }
+    }
+
+    printf("\n");
+
+    /*
+     * Initially:
+     *
+     * Work = Available
+     */
+    for (int j = 0; j < m; j++)
+    {
         work[j] = available[j];
     }
 
-    int completed = 0;
+    /*
+     * Safety Algorithm
+     */
+    while (completed < NUMBER_OF_PROCESSES)
+    {
+        processFound = 0;
 
-    while (completed < processes) {
-        bool processFound = false;
-
-        for (int i = 0; i < processes; i++) {
-            if (!finish[i]) {
-                bool canExecute = true;
+        for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+        {
+            /*
+             * Check only unfinished processes.
+             */
+            if (finish[i] == 0)
+            {
+                canRun = 1;
 
                 /*
-                 * Check whether Need[i] <= Work
+                 * Check whether:
+                 *
+                 * Need[i] <= Work
                  */
-                for (int j = 0; j < resources; j++) {
-                    if (need[i][j] > work[j]) {
-                        canExecute = false;
+                for (int j = 0; j < m; j++)
+                {
+                    if (need[i][j] > work[j])
+                    {
+                        canRun = 0;
                         break;
                     }
                 }
 
-                if (canExecute) {
-                    /*
-                     * Process completes and releases
-                     * its allocated resources.
-                     */
-                    for (int j = 0; j < resources; j++) {
+                /*
+                 * If the process can run, assume that
+                 * it finishes and releases its resources.
+                 */
+                if (canRun == 1)
+                {
+                    for (int j = 0; j < m; j++)
+                    {
                         work[j] += allocation[i][j];
                     }
 
                     safeSequence[completed] = i;
                     completed++;
 
-                    finish[i] = true;
-                    processFound = true;
+                    finish[i] = 1;
+                    processFound = 1;
                 }
             }
         }
 
         /*
-         * No unfinished process can execute.
-         * Therefore, the state is unsafe.
+         * If no unfinished process can run,
+         * no safe sequence exists.
          */
-        if (!processFound) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool requestResources(
-    int processNumber,
-    int request[MAX_RESOURCES],
-    int processes,
-    int resources,
-    int available[MAX_RESOURCES],
-    int allocation[MAX_PROCESSES][MAX_RESOURCES],
-    int need[MAX_PROCESSES][MAX_RESOURCES]
-) {
-    /*
-     * Check Request <= Need
-     */
-    for (int j = 0; j < resources; j++) {
-        if (request[j] > need[processNumber][j]) {
-            printf("\nError: Process requested more than its maximum need.\n");
-            return false;
+        if (processFound == 0)
+        {
+            break;
         }
     }
 
     /*
-     * Check Request <= Available
+     * Print the final result.
      */
-    for (int j = 0; j < resources; j++) {
-        if (request[j] > available[j]) {
-            printf("\nResources are not currently available.");
-            printf("\nProcess P%d must wait.\n", processNumber);
-            return false;
-        }
-    }
+    if (completed == NUMBER_OF_PROCESSES)
+    {
+        printf("\nThe system is in a SAFE state.\n");
 
-    /*
-     * Temporarily allocate the requested resources.
-     */
-    for (int j = 0; j < resources; j++) {
-        available[j] -= request[j];
-        allocation[processNumber][j] += request[j];
-        need[processNumber][j] -= request[j];
-    }
+        printf("Safe Sequence: < ");
 
-    int safeSequence[MAX_PROCESSES];
-
-    if (isSafe(
-            processes,
-            resources,
-            available,
-            allocation,
-            need,
-            safeSequence
-        )) {
-
-        printf("\nRequest can be granted safely.\n");
-
-        printf("New Safe Sequence: ");
-
-        for (int i = 0; i < processes; i++) {
+        for (int i = 0; i < NUMBER_OF_PROCESSES; i++)
+        {
             printf("P%d", safeSequence[i]);
 
-            if (i != processes - 1) {
-                printf(" -> ");
+            if (i < NUMBER_OF_PROCESSES - 1)
+            {
+                printf(", ");
             }
         }
 
-        printf("\n");
-        return true;
-    }
+        printf(" >\n");
 
-    /*
-     * Unsafe state: rollback the temporary allocation.
-     */
-    for (int j = 0; j < resources; j++) {
-        available[j] += request[j];
-        allocation[processNumber][j] -= request[j];
-        need[processNumber][j] += request[j];
-    }
+        printf("Final Work Vector: (");
 
-    printf("\nRequest cannot be granted.");
-    printf("\nIt would make the system unsafe.\n");
+        for (int j = 0; j < m; j++)
+        {
+            printf("%d", work[j]);
 
-    return false;
-}
-
-int main(void) {
-    int processes;
-    int resources;
-
-    int allocation[MAX_PROCESSES][MAX_RESOURCES];
-    int max[MAX_PROCESSES][MAX_RESOURCES];
-    int need[MAX_PROCESSES][MAX_RESOURCES];
-    int available[MAX_RESOURCES];
-    int safeSequence[MAX_PROCESSES];
-
-    printf("Enter number of processes: ");
-    scanf("%d", &processes);
-
-    printf("Enter number of resource types: ");
-    scanf("%d", &resources);
-
-    if (processes <= 0 || processes > MAX_PROCESSES ||
-        resources <= 0 || resources > MAX_RESOURCES) {
-
-        printf("Invalid number of processes or resources.\n");
-        return 1;
-    }
-
-    printf("\nEnter Allocation Matrix:\n");
-
-    for (int i = 0; i < processes; i++) {
-        printf("Allocation for P%d: ", i);
-
-        for (int j = 0; j < resources; j++) {
-            scanf("%d", &allocation[i][j]);
-        }
-    }
-
-    printf("\nEnter Max Matrix:\n");
-
-    for (int i = 0; i < processes; i++) {
-        printf("Maximum requirement for P%d: ", i);
-
-        for (int j = 0; j < resources; j++) {
-            scanf("%d", &max[i][j]);
-
-            if (max[i][j] < allocation[i][j]) {
-                printf(
-                    "Error: Max cannot be smaller than Allocation.\n"
-                );
-                return 1;
-            }
-        }
-    }
-
-    printf("\nEnter Available Resources: ");
-
-    for (int j = 0; j < resources; j++) {
-        scanf("%d", &available[j]);
-    }
-
-    calculateNeed(
-        processes,
-        resources,
-        need,
-        max,
-        allocation
-    );
-
-    printNeedMatrix(processes, resources, need);
-
-    if (isSafe(
-            processes,
-            resources,
-            available,
-            allocation,
-            need,
-            safeSequence
-        )) {
-
-        printf("\nSystem is in a SAFE state.\n");
-        printf("Safe Sequence: ");
-
-        for (int i = 0; i < processes; i++) {
-            printf("P%d", safeSequence[i]);
-
-            if (i != processes - 1) {
-                printf(" -> ");
+            if (j < m - 1)
+            {
+                printf(", ");
             }
         }
 
-        printf("\n");
-    } else {
-        printf("\nSystem is in an UNSAFE state.\n");
+        printf(")\n");
+
+        /*
+         * Validate that the final Work vector
+         * equals the Existing vector.
+         */
+        int finalWorkIsValid = 1;
+
+        for (int j = 0; j < m; j++)
+        {
+            if (work[j] != existing[j])
+            {
+                finalWorkIsValid = 0;
+                break;
+            }
+        }
+
+        if (finalWorkIsValid == 1)
+        {
+            printf("Final Work equals Existing Resources.\n");
+            printf("All processes can finish successfully.\n");
+        }
+    }
+    else
+    {
+        printf("\nThe system is in an UNSAFE state.\n");
         printf("No safe sequence exists.\n");
-        return 0;
-    }
-
-    int choice;
-
-    printf("\nDo you want to test a new resource request?");
-    printf("\nEnter 1 for Yes, 0 for No: ");
-    scanf("%d", &choice);
-
-    if (choice == 1) {
-        int processNumber;
-        int request[MAX_RESOURCES];
-
-        printf("Enter process number: ");
-        scanf("%d", &processNumber);
-
-        if (processNumber < 0 || processNumber >= processes) {
-            printf("Invalid process number.\n");
-            return 1;
-        }
-
-        printf(
-            "Enter request for P%d: ",
-            processNumber
-        );
-
-        for (int j = 0; j < resources; j++) {
-            scanf("%d", &request[j]);
-        }
-
-        requestResources(
-            processNumber,
-            request,
-            processes,
-            resources,
-            available,
-            allocation,
-            need
-        );
     }
 
     return 0;
